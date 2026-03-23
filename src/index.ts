@@ -32,13 +32,14 @@ const allTools = [
   ...soapTools,
 ];
 
-// Inject business_unit param into every tool so the LLM can select a BU by name
+// Inject business_unit param into every tool (except the listing tool) so the LLM can select a BU by name
 for (const tool of allTools) {
+  if (tool.name === "sfmc_list_business_units") continue;
   (tool.inputSchema as Record<string, unknown>).properties = {
     ...((tool.inputSchema as Record<string, unknown>).properties as Record<string, unknown>),
     business_unit: {
       type: "string",
-      description: "Name of the business unit to use. Defaults to the first account in the config file.",
+      description: "Name of the business unit to use. If the user mentions a specific business unit, call sfmc_list_business_units first to get the exact name, then pass it here. Defaults to the first account in the config file.",
     },
   };
 }
