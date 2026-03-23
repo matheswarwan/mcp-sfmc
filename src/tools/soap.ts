@@ -18,7 +18,7 @@ export const soapTools: Tool[] = [
         },
         filter: {
           type: "object",
-          description: "Optional filter object (simpleFilterPart or complexFilterPart)",
+          description: "Optional filter. Format: { \"property\": \"Name\", \"operator\": \"equals\", \"value\": \"foo\" }. Use an array for IN: { \"property\": \"Status\", \"operator\": \"IN\", \"value\": [\"0\",\"1\"] }",
         },
       },
       required: ["deExternalKey", "properties"],
@@ -105,7 +105,7 @@ export const soapTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        filter: { type: "object", description: "Optional filter" },
+        filter: { type: "object", description: "Optional filter. Format: { \"property\": \"Name\", \"operator\": \"equals\", \"value\": \"foo\" }. Use an array for IN: { \"property\": \"Status\", \"operator\": \"IN\", \"value\": [\"0\",\"1\"] }" },
       },
     },
   },
@@ -132,7 +132,7 @@ export const soapTools: Tool[] = [
           items: { type: "string" },
           description: "Properties to retrieve (e.g. ['Name', 'Status', 'CustomerKey'])",
         },
-        filter: { type: "object", description: "Optional filter" },
+        filter: { type: "object", description: "Optional filter. Format: { \"property\": \"Name\", \"operator\": \"equals\", \"value\": \"foo\" }. Use an array for IN: { \"property\": \"Status\", \"operator\": \"IN\", \"value\": [\"0\",\"1\"] }" },
       },
       required: ["properties"],
     },
@@ -233,7 +233,7 @@ export const soapTools: Tool[] = [
           items: { type: "string" },
           description: "Properties to retrieve (e.g. ['Name', 'Email', 'UserID'])",
         },
-        filter: { type: "object", description: "Optional filter" },
+        filter: { type: "object", description: "Optional filter. Format: { \"property\": \"Name\", \"operator\": \"equals\", \"value\": \"foo\" }. Use an array for IN: { \"property\": \"Status\", \"operator\": \"IN\", \"value\": [\"0\",\"1\"] }" },
       },
       required: ["properties"],
     },
@@ -250,23 +250,46 @@ export const soapTools: Tool[] = [
           items: { type: "string" },
           description: "Properties to retrieve (e.g. ['ID', 'Name', 'ParentID'])",
         },
-        filter: { type: "object", description: "Optional filter" },
+        filter: { type: "object", description: "Optional filter. Format: { \"property\": \"Name\", \"operator\": \"equals\", \"value\": \"foo\" }. Use an array for IN: { \"property\": \"Status\", \"operator\": \"IN\", \"value\": [\"0\",\"1\"] }" },
       },
       required: ["properties"],
     },
   },
 ];
 
+function buildSimpleFilterXml(property: string, operator: string, value: unknown): string {
+  const valueXml = Array.isArray(value)
+    ? (value as unknown[]).map((v) => `<Value>${v}</Value>`).join("\n      ")
+    : `<Value>${value}</Value>`;
+  return `<Filter xsi:type="SimpleFilterPart">
+      <Property>${property}</Property>
+      <SimpleOperator>${operator}</SimpleOperator>
+      ${valueXml}
+    </Filter>`;
+}
+
 function buildFilter(filter: Record<string, unknown> | undefined): string {
   if (!filter) return "";
+
+  // Wrapped format: { simpleFilterPart: { property, operator, value } }
   if (filter.simpleFilterPart) {
     const f = filter.simpleFilterPart as Record<string, unknown>;
-    return `<Filter xsi:type="SimpleFilterPart">
-      <Property>${f.property}</Property>
-      <SimpleOperator>${f.operator || "equals"}</SimpleOperator>
-      <Value>${f.value}</Value>
-    </Filter>`;
+    return buildSimpleFilterXml(
+      f.property as string,
+      (f.operator as string) || "equals",
+      f.value
+    );
   }
+
+  // Direct format (camelCase or PascalCase): { property/Property, operator/SimpleOperator, value/Value }
+  const property = (filter.property || filter.Property) as string | undefined;
+  const operator = ((filter.operator || filter.SimpleOperator || "equals") as string);
+  const value = filter.value ?? filter.Value;
+
+  if (property && value !== undefined) {
+    return buildSimpleFilterXml(property, operator, value);
+  }
+
   return "";
 }
 
