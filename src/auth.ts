@@ -1,11 +1,12 @@
 import axios from "axios";
 import { SFMCConfig, TokenCache } from "./types.js";
 
-let tokenCache: TokenCache | null = null;
+const tokenCache = new Map<string, TokenCache>();
 
 export async function getAccessToken(config: SFMCConfig): Promise<TokenCache> {
-  if (tokenCache && Date.now() < tokenCache.expiresAt) {
-    return tokenCache;
+  const cached = tokenCache.get(config.businessUnitName);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached;
   }
 
   const body: Record<string, string> = {
@@ -26,7 +27,7 @@ export async function getAccessToken(config: SFMCConfig): Promise<TokenCache> {
 
   const data = response.data;
 
-  tokenCache = {
+  const entry: TokenCache = {
     token: data.access_token,
     // Subtract 60s buffer from expiry
     expiresAt: Date.now() + (data.expires_in - 60) * 1000,
@@ -34,9 +35,14 @@ export async function getAccessToken(config: SFMCConfig): Promise<TokenCache> {
     restUrl: data.rest_instance_url || `https://${config.subdomain}.rest.marketingcloudapis.com`,
   };
 
-  return tokenCache;
+  tokenCache.set(config.businessUnitName, entry);
+  return entry;
 }
 
-export function clearTokenCache(): void {
-  tokenCache = null;
+export function clearTokenCache(businessUnitName?: string): void {
+  if (businessUnitName) {
+    tokenCache.delete(businessUnitName);
+  } else {
+    tokenCache.clear();
+  }
 }

@@ -17,14 +17,45 @@ npm install -g mcp-sfmc
 
 ## Configuration
 
-Set the following environment variables:
+Create a JSON config file (e.g. `~/.config/sfmc-accounts.json`) with an array of business unit credentials:
 
-| Variable | Required | Description |
+```json
+[
+  {
+    "business_unit_name": "Primary",
+    "subdomain": "your-subdomain",
+    "grant_type": "client_credentials",
+    "client_id": "your-client-id",
+    "client_secret": "your-client-secret",
+    "account_id": "your-mid"
+  },
+  {
+    "business_unit_name": "Sales",
+    "subdomain": "sales-subdomain",
+    "grant_type": "client_credentials",
+    "client_id": "sales-client-id",
+    "client_secret": "sales-client-secret",
+    "account_id": "sales-mid"
+  }
+]
+```
+
+| Field | Required | Description |
 |---|---|---|
-| `SFMC_SUBDOMAIN` | Yes | Your tenant subdomain (e.g. `abc123def456`) |
-| `SFMC_CLIENT_ID` | Yes | OAuth client ID |
-| `SFMC_CLIENT_SECRET` | Yes | OAuth client secret |
-| `SFMC_ACCOUNT_ID` | No | MID of the business unit |
+| `business_unit_name` | Yes | Display name used to identify this BU in tool calls |
+| `subdomain` | Yes | Your tenant subdomain (e.g. `abc123def456`) |
+| `grant_type` | Yes | Always `client_credentials` |
+| `client_id` | Yes | OAuth client ID |
+| `client_secret` | Yes | OAuth client secret |
+| `account_id` | No | MID of the business unit |
+
+Then set the `SFMC_CONFIG_PATH` environment variable to point to this file.
+
+### Multiple business units
+
+Every tool accepts an optional `business_unit` parameter. If omitted, the first account in the config file is used.
+
+> "List journeys for the Sales business unit"
 
 ## Usage with Claude Desktop
 
@@ -36,10 +67,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
     "sfmc": {
       "command": "mcp-sfmc",
       "env": {
-        "SFMC_SUBDOMAIN": "your-subdomain",
-        "SFMC_CLIENT_ID": "your-client-id",
-        "SFMC_CLIENT_SECRET": "your-client-secret",
-        "SFMC_ACCOUNT_ID": "your-mid"
+        "SFMC_CONFIG_PATH": "/Users/you/.config/sfmc-accounts.json"
       }
     }
   }
@@ -55,9 +83,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
       "command": "npx",
       "args": ["mcp-sfmc"],
       "env": {
-        "SFMC_SUBDOMAIN": "your-subdomain",
-        "SFMC_CLIENT_ID": "your-client-id",
-        "SFMC_CLIENT_SECRET": "your-client-secret"
+        "SFMC_CONFIG_PATH": "/Users/you/.config/sfmc-accounts.json"
       }
     }
   }
@@ -167,7 +193,7 @@ npm run build
 
 Run locally:
 ```bash
-SFMC_SUBDOMAIN=xxx SFMC_CLIENT_ID=xxx SFMC_CLIENT_SECRET=xxx npm start
+SFMC_CONFIG_PATH=./sfmc-accounts.json npm start
 ```
 
 ## License

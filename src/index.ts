@@ -7,6 +7,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { SFMCConfig } from "./types.js";
+import { getAccount, loadAccounts } from "./config.js";
 import {
   authTools, handleAuthTool,
   assetTools, handleAssetTool,
@@ -19,21 +20,6 @@ import {
   soapTools, handleSoapTool,
 } from "./tools/index.js";
 
-function getConfig(): SFMCConfig {
-  const subdomain = process.env.SFMC_SUBDOMAIN;
-  const clientId = process.env.SFMC_CLIENT_ID;
-  const clientSecret = process.env.SFMC_CLIENT_SECRET;
-  const accountId = process.env.SFMC_ACCOUNT_ID;
-
-  if (!subdomain || !clientId || !clientSecret) {
-    throw new Error(
-      "Missing required environment variables: SFMC_SUBDOMAIN, SFMC_CLIENT_ID, SFMC_CLIENT_SECRET"
-    );
-  }
-
-  return { subdomain, clientId, clientSecret, accountId };
-}
-
 const allTools = [
   ...authTools,
   ...assetTools,
@@ -45,6 +31,17 @@ const allTools = [
   ...ensTools,
   ...soapTools,
 ];
+
+// Inject business_unit param into every tool so the LLM can select a BU by name
+for (const tool of allTools) {
+  (tool.inputSchema as Record<string, unknown>).properties = {
+    ...((tool.inputSchema as Record<string, unknown>).properties as Record<string, unknown>),
+    business_unit: {
+      type: "string",
+      description: "Name of the business unit to use. Defaults to the first account in the config file.",
+    },
+  };
+}
 
 // Build a lookup map for fast dispatch
 const toolHandlers: Record<string, (args: Record<string, unknown>, config: SFMCConfig) => Promise<unknown>> = {};
@@ -78,6 +75,10 @@ for (const tool of soapTools) {
 }
 
 async function main() {
+  // Validate config at startup so misconfiguration fails fast
+  const accounts = loadAccounts();
+  console.error(`SFMC MCP Server: loaded ${accounts.length} business unit(s): ${accounts.map((a) => a.businessUnitName).join(", ")}`);
+
   const server = new Server(
     {
       name: "mcp-sfmc",
@@ -106,7 +107,7 @@ async function main() {
     }
 
     try {
-      const config = getConfig();
+      const config = getAccount((args as Record<string, unknown>).business_unit as string | undefined);
       const result = await handler(args as Record<string, unknown>, config);
       return {
         content: [

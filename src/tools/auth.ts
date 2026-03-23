@@ -41,7 +41,7 @@ export async function handleAuthTool(
 ): Promise<unknown> {
   switch (name) {
     case "sfmc_get_token": {
-      clearTokenCache();
+      clearTokenCache(config.businessUnitName);
       const tokenData = await getAccessToken(config);
       return {
         access_token: tokenData.token,

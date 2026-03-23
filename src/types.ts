@@ -1,4 +1,14 @@
+export interface SFMCAccount {
+  business_unit_name: string;
+  subdomain: string;
+  grant_type: string;
+  client_id: string;
+  client_secret: string;
+  account_id?: string;
+}
+
 export interface SFMCConfig {
+  businessUnitName: string;
   subdomain: string;
   clientId: string;
   clientSecret: string;
