@@ -11,27 +11,88 @@ An MCP (Model Context Protocol) server for Salesforce Marketing Cloud REST and S
 - REST API support: Auth, Assets, Contacts, Data Events, Journeys, Transactional Messaging, Push, SMS, ENS, Audit
 - SOAP API support: Data Extensions, Automations, Subscribers, Users, Admin
 
-## Installation
+## Getting started
+
+Six steps from nothing to a working server. Nothing is created by hand.
+
+### 1. Install
 
 ```bash
 npm install -g mcp-sfmc
+mcp-sfmc --version
 ```
 
-## Quick start
+If `mcp-sfmc` is not found straight after installing, your npm global bin directory is not on your PATH.
+See [Executable not found in $PATH](#executable-not-found-in-path-mcp-sfmc) below, which is a common one on Homebrew node.
+
+### 2. Check what is configured
+
+Before adding anything, confirm which file the CLI will use:
+
+```bash
+mcp-sfmc path
+```
+
+It prints the config path and exits non-zero while that file does not exist yet.
+Starting the server at this point tells you the same thing rather than failing obscurely:
+
+```bash
+mcp-sfmc
+# No SFMC accounts configured. Expected a config file at ~/.config/sfmc/accounts.json.
+# Run "mcp-sfmc init" to create one.
+```
+
+### 3. Add your first business unit
 
 ```bash
 mcp-sfmc init
 ```
 
-This walks you through adding your first business unit, verifies the credentials against SFMC before saving anything, fills in the MID for you, and prints the command to register the server with your client.
-Nothing needs to be created by hand.
-The config file is created at `~/.config/sfmc/accounts.json` with `0600` permissions, and the client secret is never echoed as you type it.
+You are asked for a name to use in chat, your tenant subdomain, the client ID and the client secret.
+The secret is not echoed as you type.
+Leave the MID blank and it is detected for you.
 
-Then register the server:
+The credentials are checked against SFMC before anything is written, so a typo fails here rather than in the middle of a chat later.
+The file is created at `~/.config/sfmc/accounts.json` with `0600` permissions.
+
+### 4. Add any other business units
+
+```bash
+mcp-sfmc add     # repeat per business unit
+mcp-sfmc list    # what is configured, secrets redacted
+mcp-sfmc test    # request a token for each one
+```
+
+`mcp-sfmc test` prints `ok (MID ...)` per business unit.
+A 4xx is reported as a credential problem and a 5xx as a server or proxy error, so a corporate proxy is not mistaken for a bad secret.
+
+### 5. Register the server with your client
+
+This is the step that connects everything up. For Claude Code:
 
 ```bash
 claude mcp add sfmc --scope user -- mcp-sfmc
+claude mcp list
 ```
+
+`claude mcp list` should show `sfmc ... ✓ Connected`.
+Drop `--scope user` to register it for the current project only.
+For Claude Desktop, VS Code, Cursor, Windsurf, Gemini CLI and Codex CLI, see [Connect from your client](#connect-from-your-client).
+
+Two things worth knowing here:
+
+- If `mcp-sfmc` is not on the PATH of whatever launches your client, register it by absolute path instead: `claude mcp add sfmc --scope user -- "$HOME/.npm-global/bin/mcp-sfmc"`.
+- Only add `--env SFMC_CONFIG_PATH=...` if you keep your accounts file somewhere other than the default. When the client sets that variable and your shell does not, `mcp-sfmc add` and the server read different files, and a newly added business unit appears to vanish. Leaving it out keeps both sides on the same file.
+
+### 6. Verify from your client
+
+In Claude Code, run `/mcp`, select **sfmc**, and check it reports `connected` with its tools listed.
+Then ask in chat:
+
+> "List my SFMC business units"
+
+The reply lists every business unit you configured, along with the config file they came from.
+If one is missing, the response and the server log both name the file in use and warn about any other config holding business units.
 
 ## Managing business units
 

@@ -2,6 +2,12 @@
 
 ## Just done
 
+### README walkthrough (v1.3.1)
+
+Replaced the two line "Installation" and "Quick start" sections with a numbered six step walkthrough: install, check what is configured, `init`, add the rest, register with the client, verify from chat.
+Step 5 spells out the wiring that was previously implicit, including registering by absolute path when PATH is unreliable, and why adding `--env SFMC_CONFIG_PATH=...` invites the config mismatch.
+Note there is only one README: `files` in `package.json` is `["dist", "README.md"]`, so the same file renders on GitHub and on npmjs.com, and the npm page only refreshes on publish.
+
 ### Config mismatch diagnostics (v1.3.0)
 
 A business unit added with the CLI could silently fail to appear in the MCP client.
