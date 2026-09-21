@@ -5,6 +5,8 @@ An MCP (Model Context Protocol) server for Salesforce Marketing Cloud REST and S
 ## Features
 
 - **90+ tools** covering all major SFMC API areas
+- Guided setup: `mcp-sfmc init` creates the config, verifies credentials against SFMC and detects your MID
+- Multiple business units, selectable by name from chat
 - Automatic token management with refresh (tokens expire after 20 min)
 - REST API support: Auth, Assets, Contacts, Data Events, Journeys, Transactional Messaging, Push, SMS, ENS, Audit
 - SOAP API support: Data Extensions, Automations, Subscribers, Users, Admin
@@ -15,9 +17,61 @@ An MCP (Model Context Protocol) server for Salesforce Marketing Cloud REST and S
 npm install -g mcp-sfmc
 ```
 
-## Configuration
+## Quick start
 
-Create a JSON config file (e.g. `~/.config/sfmc-accounts.json`) with an array of business unit credentials:
+```bash
+mcp-sfmc init
+```
+
+This walks you through adding your first business unit, verifies the credentials against SFMC before saving anything, fills in the MID for you, and prints the command to register the server with your client.
+Nothing needs to be created by hand.
+The config file is created at `~/.config/sfmc/accounts.json` with `0600` permissions, and the client secret is never echoed as you type it.
+
+Then register the server:
+
+```bash
+claude mcp add sfmc --scope user -- mcp-sfmc
+```
+
+## Managing business units
+
+```bash
+mcp-sfmc init            # set up the config file and add your first business unit
+mcp-sfmc add             # add another business unit
+mcp-sfmc list            # list configured business units, secrets redacted
+mcp-sfmc test [name]     # request a token for one or all business units
+mcp-sfmc remove <name>   # remove a business unit
+mcp-sfmc path            # print the config file path
+mcp-sfmc help            # show usage
+```
+
+`add` and `init` also accept flags, so setup can be scripted or run in CI:
+
+```bash
+mcp-sfmc add --name "Sales" --subdomain mc123abc --client-id abc123 --client-secret "$SECRET"
+```
+
+| Flag | Description |
+|---|---|
+| `--name` | Business unit name you will use in chat |
+| `--subdomain` | Tenant subdomain; a full `https://...marketingcloudapis.com` URL is also accepted |
+| `--client-id` | Installed package client ID |
+| `--client-secret` | Client secret, or set `SFMC_CLIENT_SECRET` to keep it out of your shell history |
+| `--account-id` | MID; detected automatically when omitted |
+| `--no-verify` | Save without checking the credentials against SFMC |
+
+Adding a business unit takes effect immediately.
+The server re-reads the config file when it changes, so there is no need to restart your MCP client.
+
+## Configuration file
+
+The config file is resolved in this order:
+
+1. `$SFMC_CONFIG_PATH`
+2. `$XDG_CONFIG_HOME/sfmc/accounts.json`
+3. `~/.config/sfmc/accounts.json`
+
+It holds an array of business unit credentials:
 
 ```json
 [
@@ -28,14 +82,6 @@ Create a JSON config file (e.g. `~/.config/sfmc-accounts.json`) with an array of
     "client_id": "your-client-id",
     "client_secret": "your-client-secret",
     "account_id": "your-mid"
-  },
-  {
-    "business_unit_name": "Sales",
-    "subdomain": "sales-subdomain",
-    "grant_type": "client_credentials",
-    "client_id": "sales-client-id",
-    "client_secret": "sales-client-secret",
-    "account_id": "sales-mid"
   }
 ]
 ```
@@ -49,46 +95,192 @@ Create a JSON config file (e.g. `~/.config/sfmc-accounts.json`) with an array of
 | `client_secret` | Yes | OAuth client secret |
 | `account_id` | No | MID of the business unit |
 
-Then set the `SFMC_CONFIG_PATH` environment variable to point to this file.
-
 ### Multiple business units
 
 Every tool accepts an optional `business_unit` parameter. If omitted, the first account in the config file is used.
 
 > "List journeys for the Sales business unit"
 
-## Usage with Claude Desktop
+### Configuring through the environment
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+A single business unit can be supplied entirely through environment variables, which suits containers and CI.
+When these are set they take precedence over the config file:
+
+| Variable | Required | Description |
+|---|---|---|
+| `SFMC_SUBDOMAIN` | Yes | Tenant subdomain |
+| `SFMC_CLIENT_ID` | Yes | OAuth client ID |
+| `SFMC_CLIENT_SECRET` | Yes | OAuth client secret |
+| `SFMC_ACCOUNT_ID` | No | MID |
+| `SFMC_BUSINESS_UNIT_NAME` | No | Display name, defaults to `Default` |
+
+## Connect from your client
+
+`mcp-sfmc` runs locally over stdio.
+Every client below launches the same command, `mcp-sfmc`, and picks up the config file created by `mcp-sfmc init`.
+If you keep your config somewhere else, add `SFMC_CONFIG_PATH` to the `env` block, or pass `--env SFMC_CONFIG_PATH=...` to `claude mcp add`.
+
+### Claude Code
+
+```bash
+claude mcp add sfmc --scope user -- mcp-sfmc
+```
+
+Drop `--scope user` to register the server for the current project only.
+Verify with `claude mcp list`, or `/mcp` inside a session.
+
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
   "mcpServers": {
     "sfmc": {
-      "command": "mcp-sfmc",
-      "env": {
-        "SFMC_CONFIG_PATH": "/Users/you/.config/sfmc-accounts.json"
-      }
+      "command": "mcp-sfmc"
     }
   }
 }
 ```
 
-## Usage with npx (no install)
+Restart Claude Desktop after saving.
+
+### VS Code (GitHub Copilot agent mode)
+
+Create `.vscode/mcp.json` in the workspace, or add the same block to your user `mcp.json` via **MCP: Open User Configuration**:
+
+```json
+{
+  "servers": {
+    "sfmc": {
+      "type": "stdio",
+      "command": "mcp-sfmc"
+    }
+  }
+}
+```
+
+Or add it in one command:
+
+```bash
+code --add-mcp '{"name":"sfmc","command":"mcp-sfmc"}'
+```
+
+### Cursor
+
+Add to `~/.cursor/mcp.json` for all projects, or `.cursor/mcp.json` for one project:
 
 ```json
 {
   "mcpServers": {
     "sfmc": {
-      "command": "npx",
-      "args": ["mcp-sfmc"],
-      "env": {
-        "SFMC_CONFIG_PATH": "/Users/you/.config/sfmc-accounts.json"
-      }
+      "command": "mcp-sfmc"
     }
   }
 }
 ```
+
+### Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "sfmc": {
+      "command": "mcp-sfmc"
+    }
+  }
+}
+```
+
+### Gemini CLI
+
+Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in a project):
+
+```json
+{
+  "mcpServers": {
+    "sfmc": {
+      "command": "mcp-sfmc"
+    }
+  }
+}
+```
+
+### Codex CLI
+
+Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.sfmc]
+command = "mcp-sfmc"
+```
+
+### Without installing globally
+
+Replace `"command": "mcp-sfmc"` with `"command": "npx", "args": ["-y", "mcp-sfmc"]` in any of the snippets above.
+
+### Troubleshooting
+
+Start with the CLI, which checks the parts a client cannot:
+
+```bash
+mcp-sfmc path     # which config file is in use
+mcp-sfmc list     # what is configured
+mcp-sfmc test     # whether SFMC accepts each set of credentials
+```
+
+`mcp-sfmc test` distinguishes a rejected credential (HTTP 4xx) from an SFMC or proxy failure (HTTP 5xx), so a corporate proxy or VPN is not mistaken for a bad client secret.
+
+#### "Executable not found in $PATH: mcp-sfmc"
+
+The package is installed but your client cannot launch it.
+This is a PATH problem, not a server problem.
+
+```bash
+npm ls -g --depth=0         # is mcp-sfmc listed?
+which mcp-sfmc              # is it reachable?
+echo "$(npm prefix -g)/bin" # where npm put the binary
+```
+
+If `npm ls -g` lists it but `which` cannot find it, the npm global bin directory is not on your PATH.
+On Homebrew node that directory is version pinned, for example `/opt/homebrew/Cellar/node/25.8.0/bin`, and Homebrew only symlinks the binaries that existed when the formula was linked.
+
+Two traps to avoid when fixing your shell profile:
+
+- `npm bin` and `npm -g bin` were removed in npm 9, so a line like `export PATH="$(npm -g bin):$PATH"` silently injects npm's error text into your PATH instead of a directory. Use `$(npm prefix -g)/bin` if you want the dynamic form.
+- `npm config set prefix` and `NPM_CONFIG_PREFIX` both break nvm, which refuses to run when a global prefix is configured.
+
+The approach that survives a `brew upgrade node` and stays compatible with nvm is a per-install prefix:
+
+```bash
+npm install -g --prefix "$HOME/.npm-global" mcp-sfmc
+export PATH="$HOME/.npm-global/bin:$PATH"   # add this to ~/.zshrc
+```
+
+Then register the server by absolute path, so it does not depend on the PATH of whatever process launches it:
+
+```bash
+claude mcp add sfmc --scope user -- "$HOME/.npm-global/bin/mcp-sfmc"
+```
+
+#### Checking the server without a client
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"debug","version":"1"}}}' | mcp-sfmc
+```
+
+A healthy server prints the business units it loaded on stderr and returns an `initialize` result on stdout.
+
+### Web clients (claude.ai, ChatGPT)
+
+Not supported directly.
+Those clients only connect to remote MCP servers over HTTP, and this server speaks stdio on your machine.
+To use it from a browser client you would need to host it behind an HTTP MCP endpoint with its own authentication, which this package does not provide.
+
+> **Keep credentials out of client config files.**
+> Only a path belongs in client config; the client IDs and secrets stay in the accounts file, which `mcp-sfmc` writes with `0600` permissions.
 
 ## Available Tools
 
@@ -185,16 +377,20 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ## Development
 
 ```bash
-git clone https://github.com/your-username/mcp-sfmc
+git clone https://github.com/matheswarwan/mcp-sfmc
 cd mcp-sfmc
 npm install
 npm run build
+npm test
 ```
 
 Run locally:
 ```bash
 SFMC_CONFIG_PATH=./sfmc-accounts.json npm start
 ```
+
+The test suite uses the Node built-in test runner and needs no credentials or network access.
+One case drives the interactive prompts through `expect` to prove the secret is never echoed; it is skipped when `expect` is not installed.
 
 ## License
 

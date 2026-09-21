@@ -5,3 +5,6 @@ dist/
 *.log
 .DS_Store
 Mathes Prompt.md
+
+# Salesforce CLI local state
+.sf/
