@@ -1,0 +1,38 @@
+# Builds and tests every push to main and every pull request.
+# The test suite needs no SFMC credentials and makes no network calls.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # Keeps the pty driven "secret is never echoed" test from skipping.
+      - name: Install expect
+        run: sudo apt-get update && sudo apt-get install -y expect
+
+      - run: npm ci
+      - run: npm test
