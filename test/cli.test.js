@@ -267,3 +267,78 @@ test("a secret cannot be prompted for without a terminal", () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /--client-secret|SFMC_CLIENT_SECRET/);
 });
+
+test("the server logs which config it loaded and warns about a shadowed one", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-sfmc-shadow-"));
+  const pinned = path.join(dir, "pinned.json");
+  const xdgHome = path.join(dir, "xdg");
+
+  run(addArgs("Primary"), { env: { SFMC_CONFIG_PATH: pinned } });
+  run(addArgs("Shadowed"), { env: { XDG_CONFIG_HOME: xdgHome } });
+
+  const result = run([], { env: { SFMC_CONFIG_PATH: pinned, XDG_CONFIG_HOME: xdgHome }, input: "" });
+
+  assert.match(result.stderr, /config .*pinned\.json \(from SFMC_CONFIG_PATH\)/);
+  assert.match(result.stderr, /loaded 1 business unit\(s\): Primary/);
+  assert.match(result.stderr, /warning: .*xdg.*accounts\.json also holds 1 business unit\(s\)/);
+});
+
+test("sfmc_list_business_units reports the config source and any shadowed config", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-sfmc-listbu-"));
+  const pinned = path.join(dir, "pinned.json");
+  const xdgHome = path.join(dir, "xdg");
+
+  run(addArgs("Primary"), { env: { SFMC_CONFIG_PATH: pinned } });
+  run(addArgs("Shadowed"), { env: { XDG_CONFIG_HOME: xdgHome } });
+
+  const messages = [
+    {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "test", version: "1" },
+      },
+    },
+    {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "sfmc_list_business_units", arguments: {} },
+    },
+  ]
+    .map((m) => JSON.stringify(m))
+    .join("\n");
+
+  const result = run([], {
+    env: { SFMC_CONFIG_PATH: pinned, XDG_CONFIG_HOME: xdgHome },
+    input: `${messages}\n`,
+  });
+
+  const call = result.stdout
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l))
+    .find((m) => m.id === 2);
+
+  const payload = JSON.parse(call.result.content[0].text);
+  assert.deepEqual(payload.business_units, ["Primary"]);
+  assert.match(payload.config_source, /pinned\.json \(from SFMC_CONFIG_PATH\)/);
+  assert.equal(payload.warning.length, 1);
+  assert.match(payload.warning[0], /also holds 1 business unit\(s\)/);
+});
+
+test("list warns when another config holds business units", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-sfmc-listwarn-"));
+  const pinned = path.join(dir, "pinned.json");
+  const xdgHome = path.join(dir, "xdg");
+
+  run(addArgs("Primary"), { env: { SFMC_CONFIG_PATH: pinned } });
+  run(addArgs("Shadowed"), { env: { XDG_CONFIG_HOME: xdgHome } });
+
+  const listed = run(["list"], { env: { SFMC_CONFIG_PATH: pinned, XDG_CONFIG_HOME: xdgHome } });
+  assert.equal(listed.status, 0);
+  assert.match(listed.stderr, /also holds 1 business unit\(s\)/);
+});

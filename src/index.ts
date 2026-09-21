@@ -7,7 +7,13 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { SFMCConfig } from "./types.js";
-import { getAccount, loadAccounts, resolveConfigPath } from "./config.js";
+import {
+  describeConfigSource,
+  getAccount,
+  loadAccounts,
+  resolveConfigPath,
+  shadowedConfigs,
+} from "./config.js";
 import { runCli, CliError } from "./cli.js";
 import { packageVersion } from "./version.js";
 import {
@@ -88,7 +94,17 @@ async function main() {
     console.error(`SFMC MCP Server: expected config at ${resolveConfigPath()}. Run "mcp-sfmc init" to create it.`);
     process.exit(1);
   }
+  // Name the file as well as the business units. Without the path, a client
+  // pointing at a different config than the CLI just writes to looks like a
+  // business unit that silently vanished.
+  console.error(`SFMC MCP Server: config ${describeConfigSource()}`);
   console.error(`SFMC MCP Server: loaded ${accounts.length} business unit(s): ${accounts.map((a) => a.businessUnitName).join(", ")}`);
+
+  for (const other of shadowedConfigs()) {
+    console.error(
+      `SFMC MCP Server: warning: ${other.path} also holds ${other.count} business unit(s) but is not being used. Business units added there will not appear here.`
+    );
+  }
 
   const server = new Server(
     {

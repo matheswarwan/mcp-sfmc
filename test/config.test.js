@@ -182,3 +182,66 @@ test("environment variables alone define a single business unit", () => {
     }
   );
 });
+
+test("describeConfigSource names the file and how it was chosen", () => {
+  const file = path.join(tmpDir(), "accounts.json");
+
+  withEnv({ ...CLEAN_ENV, SFMC_CONFIG_PATH: file }, () => {
+    assert.equal(config.describeConfigSource(), `${file} (from SFMC_CONFIG_PATH)`);
+  });
+
+  withEnv({ ...CLEAN_ENV, XDG_CONFIG_HOME: "/tmp/xdg-desc" }, () => {
+    assert.equal(config.describeConfigSource(), "/tmp/xdg-desc/sfmc/accounts.json");
+  });
+
+  withEnv(
+    {
+      ...CLEAN_ENV,
+      SFMC_SUBDOMAIN: "s",
+      SFMC_CLIENT_ID: "i",
+      SFMC_CLIENT_SECRET: "x",
+    },
+    () => assert.equal(config.describeConfigSource(), "environment variables")
+  );
+});
+
+test("shadowedConfigs reports a populated config that is not the one in use", () => {
+  const dir = tmpDir();
+  const pinned = path.join(dir, "pinned.json");
+  const xdgHome = path.join(dir, "xdg");
+  const shadowed = path.join(xdgHome, "sfmc", "accounts.json");
+
+  config.writeAccountsFile([account()], pinned);
+  config.writeAccountsFile([account({ business_unit_name: "Other" })], shadowed);
+
+  // SFMC_CONFIG_PATH wins, so the XDG file is loaded by nobody.
+  withEnv({ ...CLEAN_ENV, SFMC_CONFIG_PATH: pinned, XDG_CONFIG_HOME: xdgHome }, () => {
+    const found = config.shadowedConfigs();
+    assert.ok(
+      found.some((entry) => entry.path === shadowed && entry.count === 1),
+      `expected ${shadowed} to be reported, got ${JSON.stringify(found)}`
+    );
+    assert.ok(!found.some((entry) => entry.path === pinned), "the active config is not shadowed");
+  });
+
+  // With no override the XDG file is the one in use, so there is nothing to report.
+  withEnv({ ...CLEAN_ENV, XDG_CONFIG_HOME: xdgHome }, () => {
+    assert.ok(!config.shadowedConfigs().some((entry) => entry.path === shadowed));
+  });
+});
+
+test("an empty or missing config is not reported as shadowing", () => {
+  const dir = tmpDir();
+  const pinned = path.join(dir, "pinned.json");
+  const xdgHome = path.join(dir, "xdg");
+
+  config.writeAccountsFile([account()], pinned);
+  config.writeAccountsFile([], path.join(xdgHome, "sfmc", "accounts.json"));
+
+  withEnv({ ...CLEAN_ENV, SFMC_CONFIG_PATH: pinned, XDG_CONFIG_HOME: xdgHome }, () => {
+    assert.deepEqual(
+      config.shadowedConfigs().filter((e) => e.path.startsWith(dir)),
+      []
+    );
+  });
+});

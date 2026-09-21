@@ -233,6 +233,24 @@ mcp-sfmc test     # whether SFMC accepts each set of credentials
 
 `mcp-sfmc test` distinguishes a rejected credential (HTTP 4xx) from an SFMC or proxy failure (HTTP 5xx), so a corporate proxy or VPN is not mistaken for a bad client secret.
 
+#### A business unit you added does not show up
+
+The CLI and the server each resolve the config path independently, and they only agree when they see the same environment.
+An MCP client that sets `SFMC_CONFIG_PATH` reads that file, while `mcp-sfmc add` run in a plain shell writes to the default location, so the new business unit lands somewhere the server never looks.
+
+The server names its config file on startup and warns when another one holds business units:
+
+```
+SFMC MCP Server: config /Users/you/.config/sfmc/accounts.json
+SFMC MCP Server: loaded 2 business unit(s): Primary, Sales
+SFMC MCP Server: warning: /elsewhere/accounts.json also holds 1 business unit(s) but is not being used.
+```
+
+`sfmc_list_business_units` reports the same `config_source` and warning, so the mismatch is visible from chat.
+`mcp-sfmc path` prints the file the CLI would use.
+
+The simplest fix is to stop overriding the path: move your accounts file to `~/.config/sfmc/accounts.json` and re-register the server without `--env SFMC_CONFIG_PATH=...`, so both sides resolve to the same file.
+
 #### "Executable not found in $PATH: mcp-sfmc"
 
 The package is installed but your client cannot launch it.
