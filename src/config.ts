@@ -18,12 +18,56 @@ let cache: CacheEntry | null = null;
  *   3. ~/.config/sfmc/accounts.json
  */
 export function resolveConfigPath(): string {
-  const explicit = process.env.SFMC_CONFIG_PATH;
-  if (explicit) return explicit;
+  return process.env.SFMC_CONFIG_PATH || defaultConfigPath();
+}
 
+/** Where the config lives when SFMC_CONFIG_PATH is not set. */
+export function defaultConfigPath(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
   const base = xdg && xdg.trim() !== "" ? xdg : path.join(os.homedir(), ".config");
   return path.join(base, "sfmc", "accounts.json");
+}
+
+/**
+ * Locations this process could load a config from. Only these two: whatever
+ * SFMC_CONFIG_PATH pins, and the default. A path the resolver would never
+ * choose under the current environment is not a candidate and must not be
+ * reported, or the warning cries wolf.
+ */
+function candidatePaths(): string[] {
+  const paths = [process.env.SFMC_CONFIG_PATH, defaultConfigPath()].filter(
+    (p): p is string => typeof p === "string" && p !== ""
+  );
+
+  return [...new Set(paths)];
+}
+
+/** Where the accounts in use came from, for logging. */
+export function describeConfigSource(): string {
+  if (accountFromEnv()) return "environment variables";
+  if (process.env.SFMC_CONFIG_PATH) return `${resolveConfigPath()} (from SFMC_CONFIG_PATH)`;
+  return resolveConfigPath();
+}
+
+/**
+ * Config files that exist and hold accounts but are being shadowed by the one
+ * in use. A business unit added to one of these would silently never load,
+ * which is confusing enough to be worth reporting.
+ */
+export function shadowedConfigs(): { path: string; count: number }[] {
+  const active = accountFromEnv() ? null : resolveConfigPath();
+
+  return candidatePaths()
+    .filter((p) => p !== active)
+    .map((p) => {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
+        return { path: p, count: Array.isArray(parsed) ? parsed.length : 0 };
+      } catch {
+        return { path: p, count: 0 };
+      }
+    })
+    .filter((entry) => entry.count > 0);
 }
 
 /** True when the file is readable by group or others, which is wrong for a file holding client secrets. */

@@ -37,6 +37,10 @@ Every tool takes an optional `business_unit`; when omitted the first account win
 `sfmc_list_business_units` lists what is configured.
 
 The loader caches by path and mtime, so a business unit added by the CLI is visible to a running server without restarting the MCP client.
+
+Because the CLI and the server resolve the path independently, they diverge whenever their environments differ: an MCP client that injects `SFMC_CONFIG_PATH` reads one file while `mcp-sfmc add` in a plain shell writes to the default.
+`describeConfigSource()` and `shadowedConfigs()` exist to make that visible: the server logs its config path at startup and warns about any other candidate holding accounts, and `sfmc_list_business_units` returns the same information so it surfaces in chat.
+Candidates are only the two paths the resolver could actually choose under the current environment, never a path it would skip, or the warning would cry wolf.
 Writes are atomic (temp file plus rename) and always `0600`, with a warning when an existing file is group or world readable.
 
 ## Conventions

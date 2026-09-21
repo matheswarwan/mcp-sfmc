@@ -3,10 +3,12 @@ import readline from "readline/promises";
 import axios from "axios";
 import { SFMCAccount } from "./types.js";
 import {
+  defaultConfigPath,
   isPermissive,
   normalizeAccount,
   readAccountsFile,
   resolveConfigPath,
+  shadowedConfigs,
   writeAccountsFile,
 } from "./config.js";
 import { getAccessToken } from "./auth.js";
@@ -82,8 +84,6 @@ async function askSecret(label: string): Promise<string> {
     );
   }
 
-  process.stdout.write(`${label}: `);
-
   const previousRawMode = stdin.isRaw === true;
   stdin.setRawMode(true);
   stdin.resume();
@@ -138,7 +138,11 @@ async function askSecret(label: string): Promise<string> {
       }
     };
 
+    // Attach the listener before showing the prompt. Writing the prompt first
+    // leaves a window where input that arrives immediately, from a fast typist,
+    // a paste, or a script driving the terminal, is read by nobody and lost.
     stdin.on("data", onData);
+    process.stdout.write(`${label}: `);
   });
 }
 
@@ -255,6 +259,22 @@ async function verifyAccount(account: SFMCAccount): Promise<TokenContext> {
 const redact = (secret: string): string =>
   secret.length <= 4 ? "****" : `${"*".repeat(8)}${secret.slice(-4)}`;
 
+/**
+ * Another config file holding accounts means whichever process resolves to it
+ * sees a different set of business units. Say so rather than letting an added
+ * business unit appear to vanish.
+ */
+function warnIfShadowing(): void {
+  for (const other of shadowedConfigs()) {
+    warn(
+      color(
+        YELLOW,
+        `Note: ${other.path} also holds ${other.count} business unit(s) and is not the file in use. If your MCP client reads that one, business units added here will not appear in it.`
+      )
+    );
+  }
+}
+
 function warnIfPermissive(filePath: string): void {
   if (isPermissive(filePath)) {
     warn(
@@ -269,21 +289,8 @@ function findIndexByName(accounts: SFMCAccount[], name: string): number {
 
 function registrationSnippet(filePath: string): string {
   const envFlag =
-    filePath === resolveConfigPathWithoutOverride()
-      ? ""
-      : ` --env SFMC_CONFIG_PATH=${filePath}`;
+    filePath === defaultConfigPath() ? "" : ` --env SFMC_CONFIG_PATH=${filePath}`;
   return `claude mcp add sfmc --scope user${envFlag} -- mcp-sfmc`;
-}
-
-/** The default path, ignoring any SFMC_CONFIG_PATH currently set. */
-function resolveConfigPathWithoutOverride(): string {
-  const saved = process.env.SFMC_CONFIG_PATH;
-  delete process.env.SFMC_CONFIG_PATH;
-  try {
-    return resolveConfigPath();
-  } finally {
-    if (saved !== undefined) process.env.SFMC_CONFIG_PATH = saved;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -389,6 +396,7 @@ async function cmdAdd(flags: Flags): Promise<number> {
   out();
   out(color(GREEN, `Added "${account.business_unit_name}" to ${filePath}`));
   warnIfPermissive(filePath);
+  warnIfShadowing();
   return 0;
 }
 
@@ -446,6 +454,7 @@ function cmdList(): number {
   });
 
   warnIfPermissive(filePath);
+  warnIfShadowing();
   return 0;
 }
 

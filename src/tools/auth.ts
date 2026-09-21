@@ -3,7 +3,7 @@ import axios from "axios";
 import { SFMCConfig } from "../types.js";
 import { getAccessToken, clearTokenCache } from "../auth.js";
 import { restRequest } from "../client.js";
-import { loadAccounts } from "../config.js";
+import { describeConfigSource, loadAccounts, shadowedConfigs } from "../config.js";
 
 export const authTools: Tool[] = [
   {
@@ -52,9 +52,21 @@ export async function handleAuthTool(
   switch (name) {
     case "sfmc_list_business_units": {
       const accounts = loadAccounts();
+      const shadowed = shadowedConfigs();
       return {
         business_units: accounts.map((a) => a.businessUnitName),
         default: accounts[0].businessUnitName,
+        // Naming the source makes a config mismatch visible in chat rather
+        // than something the user has to infer from a missing business unit.
+        config_source: describeConfigSource(),
+        ...(shadowed.length > 0
+          ? {
+              warning: shadowed.map(
+                (s) =>
+                  `${s.path} also holds ${s.count} business unit(s) but is not the config in use. Business units added there will not appear here.`
+              ),
+            }
+          : {}),
       };
     }
     case "sfmc_get_token": {
