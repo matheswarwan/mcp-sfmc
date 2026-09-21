@@ -7,7 +7,9 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { SFMCConfig } from "./types.js";
-import { getAccount, loadAccounts } from "./config.js";
+import { getAccount, loadAccounts, resolveConfigPath } from "./config.js";
+import { runCli, CliError } from "./cli.js";
+import { packageVersion } from "./version.js";
 import {
   authTools, handleAuthTool,
   assetTools, handleAssetTool,
@@ -77,13 +79,21 @@ for (const tool of soapTools) {
 
 async function main() {
   // Validate config at startup so misconfiguration fails fast
-  const accounts = loadAccounts();
+  let accounts;
+  try {
+    accounts = loadAccounts();
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`SFMC MCP Server: ${message}`);
+    console.error(`SFMC MCP Server: expected config at ${resolveConfigPath()}. Run "mcp-sfmc init" to create it.`);
+    process.exit(1);
+  }
   console.error(`SFMC MCP Server: loaded ${accounts.length} business unit(s): ${accounts.map((a) => a.businessUnitName).join(", ")}`);
 
   const server = new Server(
     {
       name: "mcp-sfmc",
-      version: "1.0.0",
+      version: packageVersion(),
     },
     {
       capabilities: {
@@ -132,7 +142,24 @@ async function main() {
   console.error("SFMC MCP Server running on stdio");
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+// With arguments this binary is a setup CLI; with none it is the MCP server an
+// MCP client launches over stdio.
+const cliArgs = process.argv.slice(2);
+
+if (cliArgs.length > 0) {
+  runCli(cliArgs)
+    .then((code) => process.exit(code))
+    .catch((error: unknown) => {
+      if (error instanceof CliError) {
+        console.error(error.message);
+      } else {
+        console.error(error instanceof Error ? error.message : String(error));
+      }
+      process.exit(1);
+    });
+} else {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
