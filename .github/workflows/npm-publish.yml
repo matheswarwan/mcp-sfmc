@@ -97,20 +97,19 @@ jobs:
 
       - run: npm ci
 
+      # Inspect the real tarball rather than `npm pack --json`, whose shape has
+      # varied between npm versions.
       - name: Check the tarball contains only what it should
         run: |
-          npm pack --dry-run --json > /tmp/pack.json
-          node -e '
-            const packed = require("/tmp/pack.json")[0].files.map((f) => f.path);
-            console.log(packed.join("\n"));
-            const forbidden = packed.filter((p) =>
-              /^(src|test|docs|\.github)\//.test(p) || /\.env|accounts\.json|\.npmrc/.test(p)
-            );
-            if (forbidden.length > 0) {
-              console.error("Unexpected files in the published tarball:\n" + forbidden.join("\n"));
-              process.exit(1);
-            }
-          '
+          tarball="$(npm pack --silent)"
+          tar -tzf "${tarball}" | sed 's|^package/||' | sort > /tmp/packed.txt
+          echo "${tarball} contains $(wc -l < /tmp/packed.txt) entries:"
+          cat /tmp/packed.txt
+          if grep -qE '^(src|test|docs|\.github)/|\.env|accounts\.json|\.npmrc' /tmp/packed.txt; then
+            echo "Unexpected files in the published tarball." >&2
+            exit 1
+          fi
+          rm -f "${tarball}"
 
       - name: Publish with trusted publishing
         if: env.NPM_TOKEN == ''
