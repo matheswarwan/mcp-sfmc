@@ -12,7 +12,7 @@
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build",
-    "test": "npm run build && node --test \"test/*.test.js\""
+    "test": "npm run build && node --test test/*.test.js"
   },
   "keywords": [
     "mcp",
@@ -24,6 +24,14 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matheswarwan/mcp-sfmc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/matheswarwan/mcp-sfmc/issues"
+  },
+  "homepage": "https://github.com/matheswarwan/mcp-sfmc#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "axios": "^1.7.0",

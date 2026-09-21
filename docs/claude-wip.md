@@ -2,33 +2,38 @@
 
 ## Just done
 
+### Release automation
+
+- Replaced the stock GitHub template in `.github/workflows/npm-publish.yml`.
+  The template published on `release: created` using a long lived `npm_token` secret, ran no tag check and produced no provenance.
+- The workflow now tests on Node 20 and 22, verifies the release tag against `package.json`, inspects the tarball for anything outside `dist`, `README.md` and `package.json`, and publishes with a provenance attestation.
+- Authentication prefers npm trusted publishing over OIDC, with an `NPM_TOKEN` secret as fallback.
+  This matters because publishing from a laptop is currently blocked: the npm account has 2FA set to `auth-and-writes` and the TOTP secret is not generating codes in 1Password.
+- Added `.github/workflows/ci.yml` so tests run on pull requests, not only at release time.
+- Added `repository`, `bugs` and `homepage` to `package.json`; provenance requires `repository` to match the building repo.
+
 ### Account setup CLI (v1.2.0)
 
-The binary is now dual mode: no arguments starts the MCP server as before, arguments run a setup CLI.
+The binary is dual mode: no arguments starts the MCP server, arguments run a setup CLI (`init`, `add`, `list`, `test`, `remove`, `path`, `help`, `version`).
+`add` creates the config file and parent directories from nothing, verifies credentials against SFMC before saving, and fills in the MID from `/platform/v1/tokenContext`.
+The secret prompt reads raw bytes with echo disabled; the first readline based attempt did not actually suppress the echo, which a pty driven test caught.
+`SFMC_CONFIG_PATH` is optional, falling back to `$XDG_CONFIG_HOME/sfmc/accounts.json` then `~/.config/sfmc/accounts.json`.
+The config loader re-reads on mtime change, so a new business unit is picked up without restarting the MCP client.
 
-- `init`, `add`, `list`, `test`, `remove`, `path`, `help`, `version` in `src/cli.ts`.
-- `add` creates the config file and its parent directories from nothing on first run, so there is no hand-written JSON step.
-- Credentials are verified against SFMC before anything is saved, and the MID is filled in from `/platform/v1/tokenContext` when the user leaves it blank.
-- The secret prompt reads raw bytes with echo disabled rather than driving readline internals, which did not actually suppress the echo.
-- `SFMC_CONFIG_PATH` is now optional: the path falls back to `$XDG_CONFIG_HOME/sfmc/accounts.json` then `~/.config/sfmc/accounts.json`, which removes the env var from every client snippet.
-- The config loader re-reads on mtime change, so a newly added business unit works without restarting the MCP client.
-- A single business unit can come entirely from environment variables, for containers and CI.
-- `serverInfo.version` now comes from the manifest instead of the hardcoded `1.0.0`.
+Merged as PR #18. 27 tests, no credentials or network needed.
 
-Testing: 27 cases under `test/`, using the Node built-in runner against `dist/`, no credentials or network required.
-One case drives the interactive prompts through `expect` and asserts the typed secret never reaches the terminal; it skips when `expect` is absent.
-Verified live against both real business units with `mcp-sfmc test`, including MID auto-detection for the BU that had no `account_id`.
+## Blocked
 
-### Earlier
-
-- README: per-client setup for Claude Code, Claude Desktop, VS Code, Cursor, Windsurf, Gemini CLI and Codex CLI, plus troubleshooting.
-- Debugged a local "failed to connect": `~/.zshrc` used `export PATH="$(npm -g bin):$PATH"`, and `npm bin` was removed in npm 9, so npm's error text was spliced into PATH in place of the npm global bin directory.
-  Fixed on the machine with a `~/.npm-global` per-install prefix; a global npm prefix was avoided because nvm is loaded from `~/.zprofile` and refuses to run alongside one.
+- **1.2.0 is not on npm.** The registry still serves 1.1.3.
+  `npm publish` fails with 403 because the account requires 2FA or a granular token, and the TOTP secret is not producing codes.
+  Unblocking needs either a working authenticator entry, or a granular access token created on npmjs.com, or the trusted publisher configured for this repo.
+  All three need a working login to npmjs.com.
 
 ## Next candidates
 
-- Publish 1.2.0 to npm; the registry is still on 1.1.3.
-- Verify the client snippets by actually registering the server in Cursor, Windsurf, VS Code and Codex; only the Claude Code path is confirmed.
+- Configure the trusted publisher on npmjs.com, then cut the v1.2.0 release and let the workflow publish.
+- Verify the client snippets by registering the server in Cursor, Windsurf, VS Code and Codex; only Claude Code is confirmed.
+- 79 Dependabot alerts on the default branch are unaddressed.
 - Consider an HTTP transport so browser clients can connect; that pulls in auth and hosting.
-- Consider reading secrets from the macOS keychain, e.g. a `keychain:` prefix on `client_secret`, so the file holds references rather than secrets.
+- Consider reading secrets from the macOS keychain so the accounts file holds references rather than secrets.
 - The tool catalogue in the README uses em dashes, which the project style avoids; worth normalising in a separate pass.

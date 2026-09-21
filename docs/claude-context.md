@@ -46,6 +46,19 @@ Writes are atomic (temp file plus rename) and always `0600`, with a warning when
 - Build with `npm run build` (tsc to `dist/`); `npm test` builds first, then runs the suite.
 - Only `dist` and `README.md` are published, so tests and docs stay out of the tarball.
 
+## CI and releases
+
+- `.github/workflows/ci.yml` - builds and tests every push to `main` and every pull request, on Node 20 and 22.
+- `.github/workflows/npm-publish.yml` - publishes to npm when a GitHub release is published, or on manual dispatch.
+
+The publish job checks the release tag against `package.json`, refuses a tarball containing anything outside `dist`, `README.md` and `package.json`, and publishes with provenance.
+Authentication prefers trusted publishing over OIDC (`id-token: write`, npm 11.5.1 or newer) and falls back to an `NPM_TOKEN` secret when one is set.
+Because the `secrets` context cannot be read from a step-level `if`, the token is surfaced as a job-level `env` value and the two publish steps branch on that.
+
+Both workflows install `expect` so the pty driven test that proves the secret prompt does not echo actually runs rather than skipping.
+
+Provenance requires the `repository` field in `package.json` to match the building repository, which is why that field exists.
+
 ## Docs to keep current
 
 - `README.md` - quick start, CLI reference, config schema, per-client setup, troubleshooting, full tool catalogue.

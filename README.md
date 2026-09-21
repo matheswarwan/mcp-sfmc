@@ -392,6 +392,20 @@ SFMC_CONFIG_PATH=./sfmc-accounts.json npm start
 The test suite uses the Node built-in test runner and needs no credentials or network access.
 One case drives the interactive prompts through `expect` to prove the secret is never echoed; it is skipped when `expect` is not installed.
 
+## Releasing
+
+Releases are published to npm by GitHub Actions, not from a laptop.
+
+1. Bump the version on `main`: `npm version patch|minor|major`
+2. Push the commit and the tag: `git push && git push --tags`
+3. Publish a GitHub release for that tag
+
+The workflow runs the test suite on Node 20 and 22, refuses to continue when the release tag and `package.json` disagree, checks that the tarball contains nothing but `dist`, `README.md` and `package.json`, and publishes with a provenance attestation.
+
+Authentication prefers npm trusted publishing (OIDC), which needs no stored secret.
+Configure it once in the package settings on npmjs.com by adding this repository and the `npm-publish.yml` workflow as a trusted publisher.
+Until that is done, the workflow falls back to an `NPM_TOKEN` repository secret, which should be a granular access token with read and write access to this package.
+
 ## License
 
 MIT

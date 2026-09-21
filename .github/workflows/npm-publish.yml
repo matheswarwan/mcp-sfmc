@@ -1,33 +1,132 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+# Publishes mcp-sfmc to the npm registry when a GitHub release is published.
+#
+# Authentication, in order of preference:
+#
+#   1. Trusted publishing (OIDC). No secret to store, leak or rotate, and npm
+#      records a provenance attestation tying the tarball to this workflow run.
+#      One time setup on npmjs.com: open the package settings, add a trusted
+#      publisher, and point it at this repository with workflow "npm-publish.yml".
+#
+#   2. An NPM_TOKEN repository secret, used automatically when it is present.
+#      Use a granular access token with read and write access to this package
+#      and "bypass 2FA" enabled. Prefer option 1 once you can reach npmjs.com.
+#
+# To cut a release, publish a GitHub release whose tag is the version prefixed
+# with v, for example v1.2.0. The publish job refuses to run when that tag and
+# the version in package.json disagree.
 
-name: Node.js Package
+name: Publish to npm
 
 on:
   release:
-    types: [created]
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dist-tag:
+        description: "npm dist-tag to publish under"
+        required: false
+        default: latest
+
+permissions:
+  contents: read
+
+# Never let two publishes race for the same version.
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # One test drives the interactive prompts through a pty to prove the
+      # client secret is never echoed. It skips itself when expect is missing,
+      # so install expect to keep that coverage real in CI.
+      - name: Install expect
+        run: sudo apt-get update && sudo apt-get install -y expect
+
       - run: npm ci
       - run: npm test
 
-  publish-npm:
-    needs: build
+  publish:
+    needs: test
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # required for trusted publishing and provenance
+
+    # secrets cannot be read from a step-level `if`, so surface it as env first.
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org/
+          node-version: 22
+          cache: npm
+
+      # Trusted publishing needs npm 11.5.1 or newer, which is later than the
+      # version bundled with Node 22.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Check the release tag matches package.json
+        if: github.event_name == 'release'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Release tag ${GITHUB_REF_NAME} does not match package.json version ${pkg}." >&2
+            exit 1
+          fi
+          echo "Publishing version ${pkg}."
+
       - run: npm ci
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+
+      - name: Check the tarball contains only what it should
+        run: |
+          npm pack --dry-run --json > /tmp/pack.json
+          node -e '
+            const packed = require("/tmp/pack.json")[0].files.map((f) => f.path);
+            console.log(packed.join("\n"));
+            const forbidden = packed.filter((p) =>
+              /^(src|test|docs|\.github)\//.test(p) || /\.env|accounts\.json|\.npmrc/.test(p)
+            );
+            if (forbidden.length > 0) {
+              console.error("Unexpected files in the published tarball:\n" + forbidden.join("\n"));
+              process.exit(1);
+            }
+          '
+
+      - name: Publish with trusted publishing
+        if: env.NPM_TOKEN == ''
+        run: npm publish --provenance --tag "${{ inputs.dist-tag || 'latest' }}"
+
+      - name: Publish with NPM_TOKEN
+        if: env.NPM_TOKEN != ''
+        run: |
+          npm config set //registry.npmjs.org/:_authToken "${NPM_TOKEN}"
+          npm publish --provenance --tag "${{ inputs.dist-tag || 'latest' }}"
+
+      - name: Summarise
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          {
+            echo "### Published \`mcp-sfmc@${version}\`"
+            echo
+            echo "https://www.npmjs.com/package/mcp-sfmc/v/${version}"
+          } >> "$GITHUB_STEP_SUMMARY"
