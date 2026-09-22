@@ -2,6 +2,18 @@
 
 ## Just done
 
+### Comparison with Salesforce's first party server (v1.3.2)
+
+Added a README section comparing this project with the [MCP Server for Marketing Cloud Engagement](https://developer.salesforce.com/docs/marketing/mce-mcp/guide/mce-mcp.html), GA since June 2026.
+Salesforce's is hosted and reached over HTTP, authenticates the user through an installed package, and enforces the intersection of package scopes and that user's permissions.
+This one runs locally over stdio, uses `client_credentials` with no user identity, holds several business units in one config, and covers SOAP as well as REST.
+The section says plainly when Salesforce's is the better choice, rather than only listing this project's strengths.
+
+Sourcing note: developer.salesforce.com returns 403 to automated fetches, so the facts came from search indexed documentation plus first hand evidence in the environment, where MCE MCP endpoints are registered as remote HTTP servers with per tenant URLs requiring OAuth.
+Worth re-checking against the live docs, especially anything about editions or cost, which was not established.
+
+Also corrected the Features line from "90+ tools" to 126, verified against `tools/list` from the built server.
+
 ### README walkthrough (v1.3.1)
 
 Replaced the two line "Installation" and "Quick start" sections with a numbered six step walkthrough: install, check what is configured, `init`, add the rest, register with the client, verify from chat.
