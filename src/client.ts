@@ -40,10 +40,17 @@ export async function restRequest(
   }
 }
 
+export interface SoapRequestOptions {
+  // false keeps every value as a string, so keys like "007" survive intact.
+  // Defaults to true for backward compatibility with existing tools.
+  parseValues?: boolean;
+}
+
 export async function soapRequest(
   config: SFMCConfig,
   action: string,
-  body: string
+  body: string,
+  options: SoapRequestOptions = {}
 ): Promise<unknown> {
   const tokenData = await getAccessToken(config);
   const soapUrl = `${tokenData.soapUrl.replace(/\/$/, "")}/Service.asmx`;
@@ -68,7 +75,11 @@ export async function soapRequest(
       },
     });
 
-    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "@_",
+      parseTagValue: options.parseValues ?? true,
+    });
     return parser.parse(response.data);
   } catch (error: unknown) {
     if (axios.isAxiosError(error) && error.response) {

@@ -2,6 +2,15 @@
 
 ## Just done
 
+### Data Extension search and bulk email validation
+
+Two tools ported from standalone projects.
+
+- `sfmc_de_search` (from `sfmc-search-in-all-de`, a CloudPage SSJS tool): lists every DE over SOAP with paging, skips `_` system DEs and a default name exclusion list (IGO_*, PI_*, QueryStudioResults and so on), reads each DE's fields, then runs one Retrieve per DE with a balanced OR tree of `like` filters over Text, EmailAddress and Phone fields. Number fields are left out because `like` on them fails the whole retrieve. DEs are searched in parallel (default 5), capped by `maxDataExtensions` (default 200), and one DE failing is reported in `errors` rather than failing the search.
+- `sfmc_validate_emails` (from `EmailValidator`): batches up to 500 addresses through `address/v1/validateEmail`, returns only problems by default, and adds an offline `didYouMean` for domains within two edits of a common provider, since SFMC accepts `gmial.com` (it has MX records). The original's SMTP mailbox probing was dropped: port 25 is usually blocked, it is slow, and probing gets the caller's IP blocklisted.
+- `sfmc_validate_email` now sends all three validators by default; it previously sent none.
+- `soapRequest` takes an optional `{ parseValues: false }` so values stay strings. The new search uses it so a key such as `007` is not returned as `7`. Existing tools keep the old parsing, which does have that problem, for example `sfmc_soap_de_retrieve`.
+
 ### Comparison with Salesforce's first party server (v1.3.2)
 
 Added a README section comparing this project with the [MCP Server for Marketing Cloud Engagement](https://developer.salesforce.com/docs/marketing/mce-mcp/guide/mce-mcp.html), GA since June 2026.
@@ -12,7 +21,7 @@ The section says plainly when Salesforce's is the better choice, rather than onl
 Sourcing note: developer.salesforce.com returns 403 to automated fetches, so the facts came from search indexed documentation plus first hand evidence in the environment, where MCE MCP endpoints are registered as remote HTTP servers with per tenant URLs requiring OAuth.
 Worth re-checking against the live docs, especially anything about editions or cost, which was not established.
 
-Also corrected the Features line from "90+ tools" to 126, verified against `tools/list` from the built server.
+Also corrected the Features line from "90+ tools" to 126, verified against `tools/list` from the built server. It is now 128 after the two tools above.
 
 ### README walkthrough (v1.3.1)
 
@@ -43,7 +52,6 @@ The listener is now attached first. 15 consecutive clean runs after the fix.
 
 ## Next candidates
 
-- README says "90+ tools"; the server actually exposes 126.
 - 79 Dependabot alerts on the default branch.
 - Verify the client snippets by registering the server in Cursor, Windsurf, VS Code and Codex; only Claude Code is confirmed.
 - Consider an HTTP transport so browser clients can connect.

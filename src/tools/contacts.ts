@@ -1,6 +1,7 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { SFMCConfig } from "../types.js";
 import { restRequest } from "../client.js";
+import { SFMC_VALIDATORS } from "./email-validation.js";
 
 export const contactTools: Tool[] = [
   {
@@ -102,6 +103,11 @@ export const contactTools: Tool[] = [
       type: "object",
       properties: {
         email: { type: "string", description: "Email address to validate" },
+        validators: {
+          type: "array",
+          items: { type: "string", enum: SFMC_VALIDATORS },
+          description: "Validators to run. Default: all of SyntaxValidator, MXValidator, ListDetectiveValidator.",
+        },
       },
       required: ["email"],
     },
@@ -131,7 +137,10 @@ export async function handleContactTool(
     case "sfmc_contact_get_delete_summary":
       return restRequest(config, "GET", "contacts/v1/contacts/analytics/deleterequests/summary");
     case "sfmc_validate_email":
-      return restRequest(config, "POST", "address/v1/validateEmail", { email: args.email });
+      return restRequest(config, "POST", "address/v1/validateEmail", {
+        email: args.email,
+        validators: (args.validators as string[] | undefined) ?? SFMC_VALIDATORS,
+      });
     default:
       throw new Error(`Unknown contact tool: ${name}`);
   }

@@ -4,12 +4,13 @@ An MCP (Model Context Protocol) server for Salesforce Marketing Cloud REST and S
 
 ## Features
 
-- **126 tools** covering all major SFMC API areas
+- **128 tools** covering all major SFMC API areas
 - Guided setup: `mcp-sfmc init` creates the config, verifies credentials against SFMC and detects your MID
 - Multiple business units, selectable by name from chat
 - Automatic token management with refresh (tokens expire after 20 min)
 - REST API support: Auth, Assets, Contacts, Data Events, Journeys, Transactional Messaging, Push, SMS, ENS, Audit
 - SOAP API support: Data Extensions, Automations, Subscribers, Users, Admin
+- Search every Data Extension in a business unit for a value, and bulk validate email addresses with typo hints
 
 ## How this compares to Salesforce's MCP server
 
@@ -27,7 +28,7 @@ They solve overlapping problems in different ways, and for a lot of teams the ri
 | Authentication | OAuth against a dedicated installed package; you authenticate as yourself | `client_credentials` from an installed package, stored locally at `0600` |
 | Effective permissions | The installed package's scopes intersected with your own user permissions | Whatever the installed package allows; there is no user identity behind the calls |
 | Business units | A connection is scoped to the business unit its installed package belongs to | Many business units in one config, chosen by name in conversation |
-| API surface | Tools over core Engagement features, closely mapped to the REST routes | 126 tools across both REST and SOAP |
+| API surface | Tools over core Engagement features, closely mapped to the REST routes | 128 tools across both REST and SOAP |
 | Cost | Included with Marketing Cloud Engagement | Free |
 
 ### When Salesforce's server is the better choice
@@ -431,6 +432,7 @@ To use it from a browser client you would need to host it behind an HTTP MCP end
 - `sfmc_contact_delete` — Delete contacts
 - `sfmc_contact_get_schema` — Get contact schema
 - `sfmc_validate_email` — Validate email address
+- `sfmc_validate_emails` — Validate up to 500 addresses, report failures and likely domain typos
 
 ### Data Events (Data Extensions via REST)
 - `sfmc_de_upsert_rows_by_key` / `sfmc_de_upsert_rows_by_id` — Bulk upsert rows
@@ -496,6 +498,9 @@ To use it from a browser client you would need to host it behind an HTTP MCP end
 - `sfmc_soap_subscriber_upsert` — Create/update subscriber
 - `sfmc_soap_user_retrieve` — Retrieve users
 - `sfmc_soap_account_retrieve` — Retrieve business units
+
+### Data Extension search
+- `sfmc_de_search` — Find which Data Extensions contain a value (LIKE match on Text, EmailAddress and Phone fields), with matching rows
 
 ## Development
 
