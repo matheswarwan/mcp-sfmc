@@ -12,6 +12,50 @@ An MCP (Model Context Protocol) server for Salesforce Marketing Cloud REST and S
 - SOAP API support: Data Extensions, Automations, Subscribers, Users, Admin
 - Search every Data Extension in a business unit for a value, and bulk validate email addresses with typo hints
 
+## How this compares to Salesforce's MCP server
+
+Salesforce ships a first-party [MCP Server for Marketing Cloud Engagement](https://developer.salesforce.com/docs/marketing/mce-mcp/guide/mce-mcp.html), generally available since June 2026.
+It is hosted by Salesforce and reached over HTTP.
+This project is an independent, locally run server and is not affiliated with Salesforce.
+
+They solve overlapping problems in different ways, and for a lot of teams the right answer is Salesforce's.
+
+| | Salesforce MCE MCP Server | mcp-sfmc |
+|---|---|---|
+| Maintained by | Salesforce, first party, supported | This repository, MIT licensed |
+| Where it runs | Hosted by Salesforce, remote HTTP endpoint | Your machine, over stdio |
+| Works with | Any MCP client, including browser based ones such as claude.ai and ChatGPT | Clients that can launch a local process: Claude Code, Claude Desktop, VS Code, Cursor, Windsurf, Gemini CLI, Codex CLI |
+| Authentication | OAuth against a dedicated installed package; you authenticate as yourself | `client_credentials` from an installed package, stored locally at `0600` |
+| Effective permissions | The installed package's scopes intersected with your own user permissions | Whatever the installed package allows; there is no user identity behind the calls |
+| Business units | A connection is scoped to the business unit its installed package belongs to | Many business units in one config, chosen by name in conversation |
+| API surface | Tools over core Engagement features, closely mapped to the REST routes | 128 tools across both REST and SOAP |
+| Cost | Included with Marketing Cloud Engagement | Free |
+
+### When Salesforce's server is the better choice
+
+- You want something supported, with Salesforce accountable for its behaviour and its roadmap.
+- Per-user permission enforcement matters, because several people will use it and their existing Marketing Cloud permissions should still apply.
+- You want to use it from a browser based client, which a local stdio server cannot serve.
+- You would rather no credential material sat on a laptop at all.
+
+### When this one fits
+
+- You work in a terminal based client and want the server running locally, with no third party between you and your tenant.
+- You move between several business units in a single session, rather than one connection per business unit.
+- You need SOAP operations, such as starting, stopping and pausing automations, retrieving data extension rows, or reading subscriber, user and account objects.
+- You want to read, fork or extend the code, or run it somewhere a hosted endpoint is not reachable.
+
+### Using both
+
+Nothing stops you registering both at once, and the tool names do not collide.
+A reasonable split is Salesforce's server for governed day to day work, and this one for local development, SOAP-only tasks and cross business unit work.
+
+### Points worth knowing either way
+
+- Marketing Cloud API limits apply the same way to both.
+- Both expose tools that change data irreversibly. Ask for a dry run, or for the plan, before letting an assistant run a destructive tool.
+- Scope the installed package to what the assistant actually needs. That is the real permission boundary in both cases.
+
 ## Getting started
 
 Six steps from nothing to a working server. Nothing is created by hand.
