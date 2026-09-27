@@ -7,3 +7,5 @@ export { transactionalTools, handleTransactionalTool } from "./transactional.js"
 export { pushSmsTools, handlePushSmsTool } from "./push-sms.js";
 export { ensTools, handleEnsTool } from "./ens.js";
 export { soapTools, handleSoapTool } from "./soap.js";
+export { deSearchTools, handleDeSearchTool } from "./de-search.js";
+export { emailValidationTools, handleEmailValidationTool } from "./email-validation.js";

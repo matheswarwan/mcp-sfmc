@@ -26,6 +26,8 @@ import {
   pushSmsTools, handlePushSmsTool,
   ensTools, handleEnsTool,
   soapTools, handleSoapTool,
+  deSearchTools, handleDeSearchTool,
+  emailValidationTools, handleEmailValidationTool,
 } from "./tools/index.js";
 
 const allTools = [
@@ -38,6 +40,8 @@ const allTools = [
   ...pushSmsTools,
   ...ensTools,
   ...soapTools,
+  ...deSearchTools,
+  ...emailValidationTools,
 ];
 
 // Inject business_unit param into every tool (except the listing tool) so the LLM can select a BU by name
@@ -81,6 +85,12 @@ for (const tool of ensTools) {
 }
 for (const tool of soapTools) {
   toolHandlers[tool.name] = (args, cfg) => handleSoapTool(tool.name, args, cfg);
+}
+for (const tool of deSearchTools) {
+  toolHandlers[tool.name] = (args, cfg) => handleDeSearchTool(tool.name, args, cfg);
+}
+for (const tool of emailValidationTools) {
+  toolHandlers[tool.name] = (args, cfg) => handleEmailValidationTool(tool.name, args, cfg);
 }
 
 async function main() {

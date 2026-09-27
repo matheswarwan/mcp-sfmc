@@ -4,12 +4,13 @@ An MCP (Model Context Protocol) server for Salesforce Marketing Cloud REST and S
 
 ## Features
 
-- **90+ tools** covering all major SFMC API areas
+- **128 tools** covering all major SFMC API areas
 - Guided setup: `mcp-sfmc init` creates the config, verifies credentials against SFMC and detects your MID
 - Multiple business units, selectable by name from chat
 - Automatic token management with refresh (tokens expire after 20 min)
 - REST API support: Auth, Assets, Contacts, Data Events, Journeys, Transactional Messaging, Push, SMS, ENS, Audit
 - SOAP API support: Data Extensions, Automations, Subscribers, Users, Admin
+- Search every Data Extension in a business unit for a value, and bulk validate email addresses with typo hints
 
 ## Getting started
 
@@ -387,6 +388,7 @@ To use it from a browser client you would need to host it behind an HTTP MCP end
 - `sfmc_contact_delete` — Delete contacts
 - `sfmc_contact_get_schema` — Get contact schema
 - `sfmc_validate_email` — Validate email address
+- `sfmc_validate_emails` — Validate up to 500 addresses, report failures and likely domain typos
 
 ### Data Events (Data Extensions via REST)
 - `sfmc_de_upsert_rows_by_key` / `sfmc_de_upsert_rows_by_id` — Bulk upsert rows
@@ -452,6 +454,9 @@ To use it from a browser client you would need to host it behind an HTTP MCP end
 - `sfmc_soap_subscriber_upsert` — Create/update subscriber
 - `sfmc_soap_user_retrieve` — Retrieve users
 - `sfmc_soap_account_retrieve` — Retrieve business units
+
+### Data Extension search
+- `sfmc_de_search` — Find which Data Extensions contain a value (LIKE match on Text, EmailAddress and Phone fields), with matching rows
 
 ## Development
 
