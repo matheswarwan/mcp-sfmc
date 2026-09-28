@@ -2,6 +2,12 @@
 
 ## Just done
 
+### Declared the xsi namespace on the SOAP envelope
+
+Request bodies use `xsi:type` on filters, objects and definitions, but the shared envelope in `client.ts` never declared `xmlns:xsi`, so every SOAP request was not namespace-well-formed.
+The envelope now declares it once; `de-search.ts` dropped its own per-request copy.
+A test in `test/client.test.js` sends every SOAP tool through the real envelope and fails on any prefix that is used but not declared.
+
 ### SOAP values stay strings
 
 `soapRequest` parsed responses with fast-xml-parser's default `parseTagValue: true`, which turns numeric and boolean looking text into numbers and booleans.

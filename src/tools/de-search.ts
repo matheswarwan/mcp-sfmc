@@ -33,7 +33,6 @@ export const DEFAULT_EXCLUDED_NAME_PATTERNS = [
 // make the whole retrieve fail.
 export const DEFAULT_SEARCH_FIELD_TYPES = ["Text", "EmailAddress", "Phone"];
 
-const XSI_NS = 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
 const PARTNER_NS = 'xmlns="http://exacttarget.com/wsdl/partnerAPI"';
 
 export const deSearchTools: Tool[] = [
@@ -148,7 +147,7 @@ export function buildLikeFilterXml(fieldNames: string[], searchString: string, t
 }
 
 export function retrieveXml(objectType: string, properties: string[], filterXml = "", continueRequestId?: string): string {
-  return `<RetrieveRequestMsg ${PARTNER_NS} ${XSI_NS}>
+  return `<RetrieveRequestMsg ${PARTNER_NS}>
         <RetrieveRequest>
           ${continueRequestId ? `<ContinueRequest>${escapeXml(continueRequestId)}</ContinueRequest>` : ""}
           <ObjectType>${escapeXml(objectType)}</ObjectType>
