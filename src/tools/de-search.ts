@@ -1,6 +1,9 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { SFMCConfig } from "../types.js";
 import { soapRequest } from "../client.js";
+import { escapeXml } from "../xml.js";
+
+export { escapeXml };
 
 // Ported from the sfmc-search-in-all-de CloudPage tool: find which Data
 // Extensions hold a value by running a LIKE search over every text-like field.
@@ -77,14 +80,6 @@ export interface DeField {
   fieldType: string;
 }
 
-export function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
 
 export function toArray<T>(value: T | T[] | undefined | null): T[] {
   if (value === undefined || value === null || value === "") return [];

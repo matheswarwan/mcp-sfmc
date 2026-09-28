@@ -2,6 +2,13 @@
 
 ## Just done
 
+### XML escaping in the SOAP tools
+
+`soap.ts` interpolated tool arguments straight into the request XML, so any value containing `&`, `<` or `>` produced a malformed envelope: an upsert of `Tom & Jerry`, a filter on `AT&T`, a DE named `R&D`.
+Every leaf value (keys, row names and values, filter property, operator and values, field definitions, subscriber fields, list and attribute entries) now goes through `escapeXml` from the new `src/xml.ts`, which `de-search.ts` shares.
+Fragments the code builds itself (`buildFilter`, `rowXml`, `fieldXml` and so on) are not escaped again.
+`test/soap.test.js` runs every SOAP tool against hostile input and checks the body is well-formed and that values survive a parse round trip; against the old code 7 of its 8 tests fail.
+
 ### Data Extension search and bulk email validation
 
 Two tools ported from standalone projects.
