@@ -58,7 +58,7 @@ export async function soapRequest(
   const soapUrl = `${tokenData.soapUrl.replace(/\/$/, "")}/Service.asmx`;
 
   const envelope = `<?xml version="1.0" encoding="UTF-8"?>
-<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <s:Header>
     <a:Action s:mustUnderstand="1">${action}</a:Action>
     <a:To s:mustUnderstand="1">${soapUrl}</a:To>

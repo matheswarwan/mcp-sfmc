@@ -84,3 +84,48 @@ test("sfmc_soap_de_retrieve returns leading zeros and phone prefixes intact", as
   assert.equal(row.Zip, "02134");
   assert.equal(row.Phone, "+14155550100");
 });
+
+// Prefixes used on element and attribute names, e.g. "s" in <s:Body> and "xsi" in xsi:type.
+function undeclaredPrefixes(xml) {
+  const declared = new Set([...xml.matchAll(/xmlns:([A-Za-z_][\w.-]*)=/g)].map((m) => m[1]));
+  const used = new Set();
+  for (const m of xml.matchAll(/<\/?([A-Za-z_][\w.-]*):[A-Za-z_]/g)) used.add(m[1]);
+  for (const m of xml.matchAll(/\s([A-Za-z_][\w.-]*):[A-Za-z_][\w.-]*=/g)) if (m[1] !== "xmlns") used.add(m[1]);
+  return [...used].filter((p) => !declared.has(p));
+}
+
+test("every SOAP envelope declares the namespace prefixes it uses", async (t) => {
+  const original = axios.post;
+  const envelopes = [];
+  axios.post = async (url, body) => {
+    if (url.includes("/v2/token")) {
+      return { data: { access_token: "tok", expires_in: 1200, soap_instance_url: "https://x.soap.example/" } };
+    }
+    envelopes.push(body);
+    return { data: RETRIEVE_XML };
+  };
+  clearTokenCache();
+  t.after(() => {
+    axios.post = original;
+    clearTokenCache();
+  });
+
+  const args = {
+    deExternalKey: "k",
+    automationKey: "k",
+    externalKey: "k",
+    name: "n",
+    subscriberKey: "s",
+    emailAddress: "e@example.com",
+    properties: ["Name"],
+    rows: [{ Id: "1" }],
+    fields: [{ name: "Name", fieldType: "Text" }],
+    filter: { property: "Name", operator: "equals", value: "x" },
+  };
+  for (const tool of soap.soapTools) {
+    envelopes.length = 0;
+    await soap.handleSoapTool(tool.name, args, config);
+    assert.equal(envelopes.length, 1, `${tool.name} did not send a request`);
+    assert.deepEqual(undeclaredPrefixes(envelopes[0]), [], `${tool.name} uses an undeclared prefix`);
+  }
+});
