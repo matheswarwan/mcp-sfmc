@@ -2,6 +2,10 @@
 
 ## Just done
 
+### README tool catalogue without em dashes
+
+The 70 catalogue entries used `` `tool` — description``; they now use `` `tool` - description``, matching the lists in `docs/claude-context.md` and the project style.
+
 ### Declared the xsi namespace on the SOAP envelope
 
 Request bodies use `xsi:type` on filters, objects and definitions, but the shared envelope in `client.ts` never declared `xmlns:xsi`, so every SOAP request was not namespace-well-formed.
@@ -77,4 +81,3 @@ The listener is now attached first. 15 consecutive clean runs after the fix.
 - Verify the client snippets by registering the server in Cursor, Windsurf, VS Code and Codex; only Claude Code is confirmed.
 - Consider an HTTP transport so browser clients can connect.
 - Consider reading secrets from the macOS keychain so the accounts file holds references rather than secrets.
-- The tool catalogue in the README uses em dashes, which the project style avoids.
