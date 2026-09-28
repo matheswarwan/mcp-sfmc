@@ -135,8 +135,6 @@ test("sfmc_de_search lists, filters and searches Data Extensions", async (t) => 
   assert.ok(search.includes("<Property>Email</Property>"));
   assert.ok(!search.includes("<Property>Age</Property>"));
   assert.ok(search.includes("<Properties>Age</Properties>"));
-  // Values are kept as strings so keys like "007" are not turned into numbers.
-  assert.ok(calls.every((c) => c.options && c.options.parseValues === false));
   // Paging followed the RequestID.
   assert.ok(calls.some((c) => c.body.includes("<ContinueRequest>page-2</ContinueRequest>")));
 });

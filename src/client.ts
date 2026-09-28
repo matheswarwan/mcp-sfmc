@@ -41,8 +41,10 @@ export async function restRequest(
 }
 
 export interface SoapRequestOptions {
-  // false keeps every value as a string, so keys like "007" survive intact.
-  // Defaults to true for backward compatibility with existing tools.
+  // true converts numeric and boolean looking text to numbers and booleans.
+  // Off by default: SOAP values are data, and conversion corrupts it
+  // ("007" -> 7, ZIP "02134" -> 2134, phone "+1415..." loses its "+",
+  // code "1e5" -> 100000, "12.50" -> 12.5).
   parseValues?: boolean;
 }
 
@@ -78,7 +80,7 @@ export async function soapRequest(
     const parser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: "@_",
-      parseTagValue: options.parseValues ?? true,
+      parseTagValue: options.parseValues ?? false,
     });
     return parser.parse(response.data);
   } catch (error: unknown) {
