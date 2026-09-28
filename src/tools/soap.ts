@@ -1,6 +1,7 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { SFMCConfig } from "../types.js";
 import { soapRequest } from "../client.js";
+import { escapeXml } from "../xml.js";
 
 export const soapTools: Tool[] = [
   // Data Extensions
@@ -259,11 +260,11 @@ export const soapTools: Tool[] = [
 
 function buildSimpleFilterXml(property: string, operator: string, value: unknown): string {
   const valueXml = Array.isArray(value)
-    ? (value as unknown[]).map((v) => `<Value>${v}</Value>`).join("\n      ")
-    : `<Value>${value}</Value>`;
+    ? (value as unknown[]).map((v) => `<Value>${escapeXml(v)}</Value>`).join("\n      ")
+    : `<Value>${escapeXml(value)}</Value>`;
   return `<Filter xsi:type="SimpleFilterPart">
-      <Property>${property}</Property>
-      <SimpleOperator>${operator}</SimpleOperator>
+      <Property>${escapeXml(property)}</Property>
+      <SimpleOperator>${escapeXml(operator)}</SimpleOperator>
       ${valueXml}
     </Filter>`;
 }
@@ -294,7 +295,7 @@ function buildFilter(filter: Record<string, unknown> | undefined): string {
 }
 
 function buildProperties(props: string[]): string {
-  return props.map((p) => `<Properties>${p}</Properties>`).join("\n");
+  return props.map((p) => `<Properties>${escapeXml(p)}</Properties>`).join("\n");
 }
 
 export async function handleSoapTool(
@@ -309,7 +310,7 @@ export async function handleSoapTool(
       const props = args.properties as string[];
       const body = `<RetrieveRequestMsg xmlns="http://exacttarget.com/wsdl/partnerAPI">
         <RetrieveRequest>
-          <ObjectType>DataExtensionObject[${args.deExternalKey}]</ObjectType>
+          <ObjectType>DataExtensionObject[${escapeXml(args.deExternalKey)}]</ObjectType>
           ${buildProperties(props)}
           ${buildFilter(filter)}
         </RetrieveRequest>
@@ -321,23 +322,23 @@ export async function handleSoapTool(
       const fieldXml = fields
         .map(
           (f) => `<Fields>
-            <Name>${f.name}</Name>
-            <FieldType>${f.fieldType || "Text"}</FieldType>
-            ${f.maxLength ? `<MaxLength>${f.maxLength}</MaxLength>` : ""}
-            ${f.isRequired ? `<IsRequired>${f.isRequired}</IsRequired>` : ""}
-            ${f.isPrimaryKey ? `<IsPrimaryKey>${f.isPrimaryKey}</IsPrimaryKey>` : ""}
-            ${f.defaultValue ? `<DefaultValue>${f.defaultValue}</DefaultValue>` : ""}
+            <Name>${escapeXml(f.name)}</Name>
+            <FieldType>${escapeXml(f.fieldType || "Text")}</FieldType>
+            ${f.maxLength ? `<MaxLength>${escapeXml(f.maxLength)}</MaxLength>` : ""}
+            ${f.isRequired ? `<IsRequired>${escapeXml(f.isRequired)}</IsRequired>` : ""}
+            ${f.isPrimaryKey ? `<IsPrimaryKey>${escapeXml(f.isPrimaryKey)}</IsPrimaryKey>` : ""}
+            ${f.defaultValue ? `<DefaultValue>${escapeXml(f.defaultValue)}</DefaultValue>` : ""}
           </Fields>`
         )
         .join("\n");
 
       const body = `<CreateRequest xmlns="http://exacttarget.com/wsdl/partnerAPI">
         <Objects xsi:type="DataExtension">
-          <CustomerKey>${args.externalKey}</CustomerKey>
-          <Name>${args.name}</Name>
-          ${args.description ? `<Description>${args.description}</Description>` : ""}
-          <IsSendable>${args.isSendable || false}</IsSendable>
-          <IsTestable>${args.isTestable || false}</IsTestable>
+          <CustomerKey>${escapeXml(args.externalKey)}</CustomerKey>
+          <Name>${escapeXml(args.name)}</Name>
+          ${args.description ? `<Description>${escapeXml(args.description)}</Description>` : ""}
+          <IsSendable>${escapeXml(args.isSendable || false)}</IsSendable>
+          <IsTestable>${escapeXml(args.isTestable || false)}</IsTestable>
           ${fieldXml}
         </Objects>
       </CreateRequest>`;
@@ -348,10 +349,10 @@ export async function handleSoapTool(
       const rowXml = rows
         .map((row) => {
           const props = Object.entries(row)
-            .map(([k, v]) => `<Properties><Name>${k}</Name><Value>${v}</Value></Properties>`)
+            .map(([k, v]) => `<Properties><Name>${escapeXml(k)}</Name><Value>${escapeXml(v)}</Value></Properties>`)
             .join("\n");
           return `<Objects xsi:type="DataExtensionObject">
-            <CustomerKey>${args.deExternalKey}</CustomerKey>
+            <CustomerKey>${escapeXml(args.deExternalKey)}</CustomerKey>
             ${props}
           </Objects>`;
         })
@@ -367,10 +368,10 @@ export async function handleSoapTool(
       const rowXml = rows
         .map((row) => {
           const props = Object.entries(row)
-            .map(([k, v]) => `<Keys><Name>${k}</Name><Value>${v}</Value></Keys>`)
+            .map(([k, v]) => `<Keys><Name>${escapeXml(k)}</Name><Value>${escapeXml(v)}</Value></Keys>`)
             .join("\n");
           return `<Objects xsi:type="DataExtensionObject">
-            <CustomerKey>${args.deExternalKey}</CustomerKey>
+            <CustomerKey>${escapeXml(args.deExternalKey)}</CustomerKey>
             ${props}
           </Objects>`;
         })
@@ -387,7 +388,7 @@ export async function handleSoapTool(
           <Parameters>
             <Parameter>
               <Name>CustomerKey</Name>
-              <Value>${args.deExternalKey}</Value>
+              <Value>${escapeXml(args.deExternalKey)}</Value>
             </Parameter>
           </Parameters>
         </Requests>
@@ -410,7 +411,7 @@ export async function handleSoapTool(
     case "sfmc_soap_de_delete_definition": {
       const body = `<DeleteRequest xmlns="http://exacttarget.com/wsdl/partnerAPI">
         <Objects xsi:type="DataExtension">
-          <CustomerKey>${args.deExternalKey}</CustomerKey>
+          <CustomerKey>${escapeXml(args.deExternalKey)}</CustomerKey>
         </Objects>
       </DeleteRequest>`;
       return soapRequest(config, "Delete", body);
@@ -431,7 +432,7 @@ export async function handleSoapTool(
         <Action>start</Action>
         <Definitions>
           <Definition xsi:type="Automation">
-            <CustomerKey>${args.automationKey}</CustomerKey>
+            <CustomerKey>${escapeXml(args.automationKey)}</CustomerKey>
           </Definition>
         </Definitions>
       </PerformRequestMsg>`;
@@ -442,7 +443,7 @@ export async function handleSoapTool(
         <Action>stop</Action>
         <Definitions>
           <Definition xsi:type="Automation">
-            <CustomerKey>${args.automationKey}</CustomerKey>
+            <CustomerKey>${escapeXml(args.automationKey)}</CustomerKey>
           </Definition>
         </Definitions>
       </PerformRequestMsg>`;
@@ -453,7 +454,7 @@ export async function handleSoapTool(
         <Action>pause</Action>
         <Definitions>
           <Definition xsi:type="Automation">
-            <CustomerKey>${args.automationKey}</CustomerKey>
+            <CustomerKey>${escapeXml(args.automationKey)}</CustomerKey>
           </Definition>
         </Definitions>
       </PerformRequestMsg>`;
@@ -464,7 +465,7 @@ export async function handleSoapTool(
         <Action>runOnce</Action>
         <Definitions>
           <Definition xsi:type="Automation">
-            <CustomerKey>${args.automationKey}</CustomerKey>
+            <CustomerKey>${escapeXml(args.automationKey)}</CustomerKey>
           </Definition>
         </Definitions>
       </PerformRequestMsg>`;
@@ -487,24 +488,24 @@ export async function handleSoapTool(
       const listXml = lists
         .map(
           (l) => `<Lists>
-            <ID>${l.id}</ID>
-            <Status>${l.status || "Active"}</Status>
+            <ID>${escapeXml(l.id)}</ID>
+            <Status>${escapeXml(l.status || "Active")}</Status>
           </Lists>`
         )
         .join("\n");
       const attrXml = attributes
         .map(
           (a) => `<Attributes>
-            <Name>${a.name}</Name>
-            <Value>${a.value}</Value>
+            <Name>${escapeXml(a.name)}</Name>
+            <Value>${escapeXml(a.value)}</Value>
           </Attributes>`
         )
         .join("\n");
       const body = `<UpsertRequest xmlns="http://exacttarget.com/wsdl/partnerAPI">
         <Objects xsi:type="Subscriber">
-          <SubscriberKey>${args.subscriberKey}</SubscriberKey>
-          <EmailAddress>${args.emailAddress}</EmailAddress>
-          ${args.status ? `<Status>${args.status}</Status>` : ""}
+          <SubscriberKey>${escapeXml(args.subscriberKey)}</SubscriberKey>
+          <EmailAddress>${escapeXml(args.emailAddress)}</EmailAddress>
+          ${args.status ? `<Status>${escapeXml(args.status)}</Status>` : ""}
           ${listXml}
           ${attrXml}
         </Objects>
