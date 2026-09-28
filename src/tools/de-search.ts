@@ -158,9 +158,8 @@ export function retrieveXml(objectType: string, properties: string[], filterXml 
       </RetrieveRequestMsg>`;
 }
 
-// Keep values as strings: numeric parsing would turn a key like "007" into 7.
 async function retrieve(config: SFMCConfig, body: string): Promise<RetrieveResponse> {
-  const parsed = await soapRequest(config, "Retrieve", body, { parseValues: false });
+  const parsed = await soapRequest(config, "Retrieve", body);
   return parseRetrieveResponse(parsed);
 }
 

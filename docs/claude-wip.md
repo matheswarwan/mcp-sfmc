@@ -2,6 +2,14 @@
 
 ## Just done
 
+### SOAP values stay strings
+
+`soapRequest` parsed responses with fast-xml-parser's default `parseTagValue: true`, which turns numeric and boolean looking text into numbers and booleans.
+That corrupted data in every SOAP tool: subscriber key `007` became `7`, ZIP `02134` became `2134`, phone `+14155550100` lost its `+`, promo code `1e5` became `100000`, and `12.50` became `12.5`.
+The default is now `false`; `{ parseValues: true }` opts back in. The DE search no longer needs to pass the option.
+Behaviour change for tool output: numbers and booleans in SOAP results now arrive as strings. That is the right call for data, but it warrants a minor version bump at release.
+`test/client.test.js` drives the real `soapRequest` through a stubbed `axios.post`, so the parse path is covered rather than stubbed out.
+
 ### XML escaping in the SOAP tools
 
 `soap.ts` interpolated tool arguments straight into the request XML, so any value containing `&`, `<` or `>` produced a malformed envelope: an upsert of `Tom & Jerry`, a filter on `AT&T`, a DE named `R&D`.
